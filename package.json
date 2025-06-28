@@ -3,22 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev:next": "next dev --turbopack",
+    "dev:server": "node src/server/index.js",
+    "dev": "concurrently \"npm:dev:next\" \"npm:dev:server\"",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:clean-duplicates": "node scripts/clean-duplicate-contacts.js"
   },
   "dependencies": {
+    "@prisma/client": "^6.10.1",
+    "concurrently": "^9.2.0",
+    "next": "15.3.4",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.3.4"
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "whatsapp-web.js": "^1.30.0"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "prisma": "^6.10.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

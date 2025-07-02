@@ -45,4 +45,3 @@ next-env.d.ts
 # Arquivos de cache e autenticação do WhatsApp Web JS
 .wwebjs_auth/
 .wwebjs_cache/
-.wwebjs_auth/session

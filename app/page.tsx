@@ -1,86 +1,52 @@
-// app/page.tsx (VERSÃO FINAL COM LINK PARA GERENCIADOR DE GRUPOS)
+// app/page.tsx (Final, com todos os links de gerenciamento)
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link'; // Importa o componente Link
-import { io, Socket } from 'socket.io-client';
+import Link from 'next/link';
 import Image from 'next/image';
-
-// Instância única do socket, criada fora do componente para persistir
-const socket: Socket = io('http://localhost:3001', {
-    autoConnect: false,
-    reconnection: true,
-    reconnectionAttempts: 5,
-});
+import { useSocket } from '../src/context/SocketContext';
 
 export default function HomePage() {
-  const [status, setStatus] = useState<string>('Aguardando conexão...');
-  const [qrCode, setQrCode] = useState<string | null>(null);
-  const [isConnected, setIsConnected] = useState<boolean>(false);
+  // Consome o estado global da conexão do nosso hook customizado.
+  const { socket, isConnected, qrCode, statusMessage, userInfo } = useSocket();
+
+  // O estado local é mantido apenas para o que é específico desta página.
   const [campaignStatus, setCampaignStatus] = useState<string>('');
   const [isCampaignRunning, setIsCampaignRunning] = useState<boolean>(false);
 
+  // useEffect para ouvir eventos específicos da campanha.
   useEffect(() => {
-    // Conecta o socket se ainda não estiver conectado
-    if (!socket.connected) {
-        socket.connect();
-    }
-
-    // Funções de callback para os eventos do socket
-    const onReady = () => {
-      setStatus('Conectado ao WhatsApp!');
-      setQrCode(null);
-      setIsConnected(true);
-      setCampaignStatus('');
-    };
-
-    const onQr = (qrDataUrl: string) => {
-      setStatus('Por favor, escaneie o QR Code.');
-      setQrCode(qrDataUrl);
-      setIsConnected(false);
-    };
-    
-    const onDisconnected = (reason: string) => {
-        setStatus(`Desconectado: ${reason}`);
-        setIsConnected(false);
-        setCampaignStatus('');
-    };
+    if (!socket) return;
 
     const onCampaignStatus = (message: string) => {
         setCampaignStatus(message);
         setIsCampaignRunning(message.includes('iniciada') || message.includes('andamento') || message.includes('Enviando'));
     };
     
-    // Adiciona os listeners de eventos
-    socket.on('ready', onReady);
-    socket.on('qr', onQr);
-    socket.on('disconnected', onDisconnected);
     socket.on('campaign-status', onCampaignStatus);
 
-    // Função de limpeza que remove os listeners ao desmontar/recarregar
     return () => {
-      socket.off('ready', onReady);
-      socket.off('qr', onQr);
-      socket.off('disconnected', onDisconnected);
       socket.off('campaign-status', onCampaignStatus);
     };
-  }, []);
+  }, [socket]);
 
-  // Função para iniciar a campanha
+  // Função para disparar a campanha.
   const handleStartCampaign = () => {
     if (socket) {
       socket.emit('start-campaign');
-      setCampaignStatus('Comando para iniciar campanha enviado...');
-      setIsCampaignRunning(true);
     }
   };
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8 md:p-24 bg-gray-100 text-gray-800">
-      <div className="z-10 w-full max-w-2xl items-center justify-between font-mono text-sm lg:flex flex-col p-8 bg-white shadow-2xl rounded-xl">
-        <h1 className="text-3xl font-bold mb-4 text-center">Dashboard de Automação</h1>
+      <div className="z-10 w-full max-w-2xl items-center flex-col p-8 bg-white shadow-2xl rounded-xl">
+        <h1 className="text-3xl font-bold mb-2 text-center">Dashboard de Automação</h1>
+        {isConnected && userInfo && (
+            <p className="text-center text-gray-500 mb-4">Conectado como: {userInfo.pushname}</p>
+        )}
+        
         <p className={`text-lg mb-6 p-3 rounded-md text-center font-semibold ${isConnected ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-          Status: {status}
+          Status: {statusMessage}
         </p>
 
         {!isConnected && qrCode && (
@@ -92,13 +58,28 @@ export default function HomePage() {
         {isConnected && (
           <div className="w-full mt-6 border-t pt-6 text-center">
             
-            {/* INSERÇÃO DO LINK PARA A PÁGINA DE GERENCIAMENTO DE GRUPOS */}
-            <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-                <h2 className="text-xl font-semibold text-gray-700 mb-2">Sincronização de Contatos</h2>
-                <p className="text-gray-600 mb-4">Acesse a página de gerenciamento para salvar ou atualizar os contatos de seus grupos.</p>
-                <Link href="/grupos" className="text-lg font-semibold text-green-700 hover:text-green-800 bg-green-100 py-3 px-5 rounded-lg inline-block transition-all shadow-sm hover:shadow-md">
-                    Gerenciar Grupos 
-                </Link>
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+                {/* Link para Gerenciar Conexão */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-2">Conexão</h2>
+                    <Link href="/conexao" className="text-lg font-semibold text-red-700 hover:text-red-800 bg-red-100 py-3 px-5 rounded-lg inline-block transition-all shadow-sm hover:shadow-md">
+                        Gerenciar
+                    </Link>
+                </div>
+                {/* Link para Gerenciar Grupos */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-2">Contatos</h2>
+                    <Link href="/grupos" className="text-lg font-semibold text-green-700 hover:text-green-800 bg-green-100 py-3 px-5 rounded-lg inline-block transition-all shadow-sm hover:shadow-md">
+                        Sincronizar
+                    </Link>
+                </div>
+                {/* Link para Gerenciar Mensagens */}
+                <div className="p-4 bg-gray-50 rounded-lg">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-2">Conteúdo</h2>
+                    <Link href="/mensagens" className="text-lg font-semibold text-purple-700 hover:text-purple-800 bg-purple-100 py-3 px-5 rounded-lg inline-block transition-all shadow-sm hover:shadow-md">
+                        Mensagens
+                    </Link>
+                </div>
             </div>
             
             <div className="border-t pt-8">

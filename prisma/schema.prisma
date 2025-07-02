@@ -31,3 +31,17 @@ model Contact {
   campaignSentAt   DateTime? // <-- ADICIONE ESTA LINHA
   groups           Group[]
 }
+
+model Message {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CampaignMedia {
+  id        String   @id @default(cuid())
+  filePath  String   @unique // Caminho público do arquivo, ex: /uploads/imagem.png
+  createdAt DateTime @default(now())
+}

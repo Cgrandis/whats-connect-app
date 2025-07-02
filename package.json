@@ -14,6 +14,7 @@
   "dependencies": {
     "@prisma/client": "^6.10.1",
     "concurrently": "^9.2.0",
+    "formidable": "^3.5.4",
     "next": "15.3.4",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",

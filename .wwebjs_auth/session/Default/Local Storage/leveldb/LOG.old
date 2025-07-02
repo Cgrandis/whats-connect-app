@@ -1,3 +1,6 @@
-2025/06/28-09:22:51.067 12ffb9 Reusing MANIFEST /home/carlos-grandis/Next-Application/whatsapp-connect/.wwebjs_auth/session/Default/Local Storage/leveldb/MANIFEST-000001
-2025/06/28-09:22:51.067 12ffb9 Recovering log #9
-2025/06/28-09:22:51.068 12ffb9 Reusing old log /home/carlos-grandis/Next-Application/whatsapp-connect/.wwebjs_auth/session/Default/Local Storage/leveldb/000009.log 
+2025/07/02-06:32:29.134 19c45 Reusing MANIFEST /home/carlos-grandis/Next-Application/whatsapp-connect/.wwebjs_auth/session/Default/Local Storage/leveldb/MANIFEST-000001
+2025/07/02-06:32:29.135 19c45 Recovering log #12
+2025/07/02-06:32:29.136 19c45 Reusing old log /home/carlos-grandis/Next-Application/whatsapp-connect/.wwebjs_auth/session/Default/Local Storage/leveldb/000012.log 
+2025/07/02-06:34:30.005 19c41 Level-0 table #16: started
+2025/07/02-06:34:30.019 19c41 Level-0 table #16: 16704 bytes OK
+2025/07/02-06:34:30.025 19c41 Delete type=0 #12

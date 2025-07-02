@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Arquivos de cache e autenticação do WhatsApp Web JS
+.wwebjs_auth/
+.wwebjs_cache/

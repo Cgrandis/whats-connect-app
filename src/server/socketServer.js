@@ -4,6 +4,7 @@ const path = require('path');
 const prisma = require('../lib/prisma');
 const { syncContactsFromGroups } = require('./services/groupSyncService');
 const { startCampaign, pauseCampaign, resumeCampaign, cancelCampaign } = require('./services/campaignService');
+const { importContactsFromFile } = require('./services/contactImportService');
 
 let whatsappState = {
   status: 'initializing',
@@ -78,6 +79,11 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('campaign-state-change', 'cancelling');
         });
 
+        socket.on('contacts:import', async ({ filePath }) => {
+            console.log(`[Socket.IO] Recebido pedido para importar contatos do arquivo: ${filePath}`);
+            await importContactsFromFile(filePath, io);
+        });
+
         socket.on('whatsapp:logout', async () => {
             try {
                 await whatsappClient.logout(); await whatsappClient.destroy();
@@ -87,6 +93,7 @@ function initializeSocketServer(httpServer, whatsappClient) {
             whatsappState = { status: 'initializing', qrCode: null, userInfo: null };
             whatsappClient.initialize();
         });
+
 
         socket.on('get-all-groups', async () => {
             const chats = await whatsappClient.getChats();

@@ -1,8 +1,7 @@
-// app/conexao/page.tsx
 'use client';
 
 import Link from 'next/link';
-import { useSocket } from '../../src/context/SocketContext'; // Ajuste o caminho conforme necessário
+import { useSocket } from '../../src/context/SocketContext';
 import Image from 'next/image';
 import { useState } from 'react';
 
@@ -25,10 +24,8 @@ export default function ConexaoPage() {
             <Link href="/" className="text-blue-600 hover:underline">Voltar ao Dashboard</Link>
         </div>
 
-        {/* Seção de Status e Controle */}
         <div className="text-center">
             {isConnected && userInfo ? (
-                // --- VISÃO QUANDO ESTÁ CONECTADO ---
                 <div>
                     <p className="text-lg p-3 rounded-md bg-green-100 text-green-800 font-semibold">
                         Status: Conectado
@@ -47,7 +44,7 @@ export default function ConexaoPage() {
                     </button>
                 </div>
             ) : qrCode ? (
-                // --- VISÃO QUANDO PRECISA ESCANEAR O QR CODE ---
+                
                 <div>
                     <p className="text-lg p-3 rounded-md bg-yellow-100 text-yellow-800 font-semibold">
                         Status: Aguardando Conexão
@@ -58,13 +55,13 @@ export default function ConexaoPage() {
                     </div>
                 </div>
             ) : (
-                // --- VISÃO DURANTE A INICIALIZAÇÃO OU LOGOUT ---
+                
                 <div>
                      <p className="text-lg p-3 rounded-md bg-gray-100 text-gray-800 font-semibold">
                         Status: {statusMessage}
                     </p>
                     <p className="my-4 text-gray-700">Aguarde enquanto o sistema prepara a conexão...</p>
-                    {/* Pode adicionar um spinner/loading aqui */}
+                    
                 </div>
             )}
         </div>

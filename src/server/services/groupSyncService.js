@@ -1,4 +1,3 @@
-// src/server/services/groupSyncService.js
 const prisma = require('../../lib/prisma');
 
 async function syncContactsFromGroups(client, targetGroupIds, io) {

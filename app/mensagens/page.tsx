@@ -20,14 +20,19 @@ export default function MensagensPage() {
     const [uploadFeedback, setUploadFeedback] = useState('');
     const [messageFeedback, setMessageFeedback] = useState('');
 
-    useEffect(() => {
-        if (!socket) return;
-        
+ useEffect(() => {
+        if (!socket) {            
+            return;
+        }        
         socket.emit('messages:get');
-        socket.emit('campaignMedia:get');
-        
-        const onMessageList = (list: Message[]) => setMessages(list);
-        const onCampaignMediaList = (list: CampaignMedia[]) => setCampaignMedia(list);
+        socket.emit('campaignMedia:get');        
+       
+        const onMessageList = (list: Message[]) => {
+            setMessages(list);
+        };
+        const onCampaignMediaList = (list: CampaignMedia[]) => {            
+            setCampaignMedia(list);
+        };
 
         socket.on('messages:list', onMessageList);
         socket.on('campaignMedia:list', onCampaignMediaList);
@@ -50,6 +55,7 @@ export default function MensagensPage() {
             if (!response.ok) throw new Error(result.error || 'Falha no upload');
             
             socket.emit('campaignMedia:create', { filePath: result.filePath });
+
             setUploadFeedback('Upload realizado com sucesso!');
             setFile(null);
             (e.target as HTMLFormElement).reset();
@@ -60,7 +66,7 @@ export default function MensagensPage() {
     };
 
     const handleMediaDelete = (id: string) => {
-        if (socket && window.confirm('Deletar esta mídia?')) {
+        if (socket && window.confirm('Deletar esta mídia?')) {          
             socket.emit('campaignMedia:delete', id);
         }
     };
@@ -91,7 +97,7 @@ export default function MensagensPage() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8">
-                    {/* Coluna da Mídia */}
+                    
                     <div className="p-6 border rounded-lg bg-gray-50">
                         <h2 className="text-2xl font-semibold mb-4">Mídia da Campanha</h2>
                         <form onSubmit={handleMediaSubmit} className="space-y-4 mb-6">
@@ -109,8 +115,7 @@ export default function MensagensPage() {
                            ))}
                         </div>
                     </div>
-
-                    {/* Coluna das Mensagens */}
+                    
                     <div className="p-6 border rounded-lg bg-gray-50">
                         <h2 className="text-2xl font-semibold mb-4">{isEditing ? 'Editando Mensagem' : 'Criar Mensagem de Texto'}</h2>
                         <form onSubmit={handleMessageSubmit} className="space-y-4">
@@ -125,7 +130,6 @@ export default function MensagensPage() {
                     </div>
                 </div>
 
-                {/* Lista de Mensagens */}
                 <div className="mt-8">
                     <h2 className="text-2xl font-semibold border-t pt-6 mb-4">Textos Salvos</h2>
                     <div className="space-y-4">

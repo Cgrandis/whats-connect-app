@@ -1,4 +1,3 @@
-// src/server/whatsappClient.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 console.log('[WhatsApp Client] Configurando cliente...');

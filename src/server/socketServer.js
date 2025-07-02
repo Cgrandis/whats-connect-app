@@ -5,14 +5,12 @@ const prisma = require('../lib/prisma');
 const { syncContactsFromGroups } = require('./services/groupSyncService');
 const { startCampaign } = require('./services/campaignService');
 
-// Objeto de estado para manter as informações da conexão.
 let whatsappState = {
   status: 'initializing',
   qrCode: null,
   userInfo: null
 };
 
-// Travas para evitar execuções simultâneas.
 let isSyncRunning = false;
 let isCampaignRunning = false;
 
@@ -22,16 +20,12 @@ function initializeSocketServer(httpServer, whatsappClient) {
     io.on('connection', (socket) => {
         console.log(`[Socket.IO] Cliente conectado: ${socket.id}. Status do WhatsApp: ${whatsappState.status}`);
         
-        // Envia o estado atual imediatamente ao novo cliente para evitar race conditions.
         if (whatsappState.status === 'ready') {
             socket.emit('ready', whatsappState.userInfo);
         } else if (whatsappState.status === 'qr' && whatsappState.qrCode) {
             socket.emit('qr', whatsappState.qrCode);
         }
 
-        // --- LÓGICA COMPLETA PARA GERENCIAMENTO DE MENSAGENS E MÍDIA ---
-
-        // Eventos de Gerenciamento de Mensagens de Texto
         socket.on('messages:get', async () => {
             const messages = await prisma.message.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('messages:list', messages);
@@ -52,16 +46,23 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('messages:list', messages);
         });
         
-        // Eventos de Gerenciamento de Mídia da Campanha
         socket.on('campaignMedia:get', async () => {
             const media = await prisma.campaignMedia.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('campaignMedia:list', media);
         });
+
         socket.on('campaignMedia:create', async ({ filePath }) => {
-            await prisma.campaignMedia.create({ data: { filePath } });
-            const media = await prisma.campaignMedia.findMany({ orderBy: { createdAt: 'desc' } });
-            io.emit('campaignMedia:list', media);
+            try {
+                const newMediaEntry = await prisma.campaignMedia.create({ data: { filePath } });
+                
+                const allMedia = await prisma.campaignMedia.findMany({ orderBy: { createdAt: 'desc' } });
+                
+                io.emit('campaignMedia:list', allMedia);
+            } catch (error) {
+                console.error("BACKEND DEBUG: ERRO CRÍTICO ao criar mídia no banco de dados:", error);
+            }
         });
+
         socket.on('campaignMedia:delete', async (id) => {
             const mediaToDelete = await prisma.campaignMedia.findUnique({ where: { id } });
             if (mediaToDelete) {
@@ -76,8 +77,6 @@ function initializeSocketServer(httpServer, whatsappClient) {
                 io.emit('campaignMedia:list', media);
             }
         });
-
-        // --- LÓGICA COMPLETA PARA OUTRAS FUNCIONALIDADES ---
 
         socket.on('whatsapp:logout', async () => {
             console.log('[WHATSAPP] Comando de logout recebido.');
@@ -123,7 +122,6 @@ function initializeSocketServer(httpServer, whatsappClient) {
         socket.on('disconnect', () => console.log(`[Socket.IO] Cliente desconectado: ${socket.id}`));
     });
 
-    // --- Listeners do WhatsApp atualizam o objeto de estado global ---
     whatsappClient.on('qr', (qr) => {
         whatsappState = { status: 'qr', qrCode: qr, userInfo: null };
         io.emit('qr', qr);

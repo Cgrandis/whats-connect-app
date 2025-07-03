@@ -1,17 +1,22 @@
+// src/server/socketServer.js (Final, Completo e Corrigido)
+
 const { Server } = require('socket.io');
 const fs = require('fs').promises;
 const path = require('path');
 const prisma = require('../lib/prisma');
+const qrcode = require('qrcode'); // Importa a biblioteca para gerar o QR Code
 const { syncContactsFromGroups } = require('./services/groupSyncService');
 const { startCampaign, pauseCampaign, resumeCampaign, cancelCampaign } = require('./services/campaignService');
 const { importContactsFromFile } = require('./services/contactImportService');
 
+// Objeto de estado para manter as informações da conexão.
 let whatsappState = {
   status: 'initializing',
   qrCode: null,
   userInfo: null
 };
 
+// Travas para evitar execuções simultâneas.
 let isSyncRunning = false;
 
 function initializeSocketServer(httpServer, whatsappClient) {
@@ -23,6 +28,7 @@ function initializeSocketServer(httpServer, whatsappClient) {
         if (whatsappState.status === 'ready') socket.emit('ready', whatsappState.userInfo);
         else if (whatsappState.status === 'qr') socket.emit('qr', whatsappState.qrCode);
 
+        // --- CRUD de Mensagens de Texto ---
         socket.on('messages:get', async () => {
             const messages = await prisma.message.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('messages:list', messages);
@@ -43,6 +49,7 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('messages:list', messages);
         });
         
+        // --- CRUD de Mídia da Campanha ---
         socket.on('campaignMedia:get', async () => {
             const media = await prisma.campaignMedia.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('campaignMedia:list', media);
@@ -63,6 +70,7 @@ function initializeSocketServer(httpServer, whatsappClient) {
             }
         });
 
+        // --- Controles da Campanha ---
         socket.on('campaign:start', async () => {
             await startCampaign(whatsappClient, io);
         });
@@ -79,11 +87,12 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('campaign-state-change', 'cancelling');
         });
 
+        // --- Importação de Contatos ---
         socket.on('contacts:import', async ({ filePath }) => {
-            console.log(`[Socket.IO] Recebido pedido para importar contatos do arquivo: ${filePath}`);
             await importContactsFromFile(filePath, io);
         });
 
+        // --- Outras Funcionalidades ---
         socket.on('whatsapp:logout', async () => {
             try {
                 await whatsappClient.logout(); await whatsappClient.destroy();
@@ -93,7 +102,6 @@ function initializeSocketServer(httpServer, whatsappClient) {
             whatsappState = { status: 'initializing', qrCode: null, userInfo: null };
             whatsappClient.initialize();
         });
-
 
         socket.on('get-all-groups', async () => {
             const chats = await whatsappClient.getChats();
@@ -111,14 +119,23 @@ function initializeSocketServer(httpServer, whatsappClient) {
         socket.on('disconnect', () => console.log(`[Socket.IO] Cliente desconectado: ${socket.id}`));
     });
 
-    whatsappClient.on('qr', (qr) => {
-        whatsappState = { status: 'qr', qrCode: qr, userInfo: null };
-        io.emit('qr', qr);
+    // --- Listeners do WhatsApp com a correção do QR Code ---
+    whatsappClient.on('qr', async (qr) => {
+        console.log('[WHATSAPP] QR Code recebido. Convertendo para DataURL...');
+        try {
+            const qrCodeDataUrl = await qrcode.toDataURL(qr);
+            whatsappState = { status: 'qr', qrCode: qrCodeDataUrl, userInfo: null };
+            io.emit('qr', qrCodeDataUrl);
+        } catch (err) {
+            console.error('[QR-CODE] Falha ao gerar a Data URL do QR Code:', err);
+        }
     });
+
     whatsappClient.on('ready', () => {
         whatsappState = { status: 'ready', qrCode: null, userInfo: whatsappClient.info };
         io.emit('ready', whatsappClient.info);
     });
+    
     whatsappClient.on('disconnected', (reason) => {
         whatsappState = { status: 'disconnected', qrCode: null, userInfo: null };
         io.emit('disconnected', reason);

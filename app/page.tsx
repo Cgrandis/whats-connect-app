@@ -1,3 +1,4 @@
+// app/page.tsx (Final, Responsivo e com Controles de Campanha)
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,19 +6,26 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSocket } from '../src/context/SocketContext';
 
+// Define os possíveis estados da campanha para um código mais limpo e seguro
 type CampaignState = 'idle' | 'running' | 'paused' | 'cancelling';
 
 export default function HomePage() { 
+  // Consome o estado global da conexão e do usuário do nosso hook customizado
   const { socket, isConnected, qrCode, statusMessage, userInfo } = useSocket();
   
+  // Estados locais, específicos desta página
   const [campaignStatus, setCampaignStatus] = useState<string>('');
   const [campaignState, setCampaignState] = useState<CampaignState>('idle');
 
+  // useEffect para ouvir os eventos específicos da campanha
   useEffect(() => {
     if (!socket) return;
 
     const onCampaignStatus = (message: string) => setCampaignStatus(message);
-    const onCampaignStateChange = (newState: CampaignState) => setCampaignState(newState);
+    const onCampaignStateChange = (newState: CampaignState) => {
+      console.log("Novo estado da campanha recebido:", newState);
+      setCampaignState(newState);
+    };
     
     socket.on('campaign-status', onCampaignStatus);
     socket.on('campaign-state-change', onCampaignStateChange);
@@ -28,13 +36,17 @@ export default function HomePage() {
     };
   }, [socket]);
 
+  // Funções para emitir os comandos de controle da campanha
   const handleStart = () => socket?.emit('campaign:start');
   const handlePause = () => socket?.emit('campaign:pause');
   const handleResume = () => socket?.emit('campaign:resume');
   const handleCancel = () => {
-    if (window.confirm('Tem certeza que deseja cancelar a campanha?')) socket?.emit('campaign:cancel');
+    if (window.confirm('Tem certeza que deseja cancelar a campanha?')) {
+      socket?.emit('campaign:cancel');
+    }
   };
 
+  // Função que decide quais botões mostrar com base no estado atual da campanha
   const renderCampaignControls = () => {
     switch (campaignState) {
       case 'running':
@@ -53,6 +65,7 @@ export default function HomePage() {
         );
       case 'cancelling':
         return <p className="text-lg font-semibold text-red-500 animate-pulse">Cancelando campanha...</p>;
+      case 'idle':
       default:
         return (
           <button onClick={handleStart} className="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-blue-700 transition-all transform hover:scale-105">

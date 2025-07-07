@@ -35,7 +35,6 @@ export default function ContatosPage() {
 
   useEffect(() => {
     fetchContacts();
-
     if (!socket) return;
     
     const onContactsList = (contacts: Contact[]) => {
@@ -89,11 +88,8 @@ export default function ContatosPage() {
   const handleSelectContact = (contactId: string) => {
     setSelectedContacts(prev => {
       const newSelection = new Set(prev);
-      if (newSelection.has(contactId)) {
-        newSelection.delete(contactId);
-      } else {
-        newSelection.add(contactId);
-      }
+      if (newSelection.has(contactId)) newSelection.delete(contactId);
+      else newSelection.add(contactId);
       return newSelection;
     });
   };
@@ -133,22 +129,28 @@ export default function ContatosPage() {
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-center">
-                <div className="p-4 bg-[#0D0D0D]/50 rounded-lg"><p className="text-3xl font-bold text-white">{stats.total}</p><p className="text-sm text-[#8C8C8C]">Contatos no WhatsApp</p></div>
-                <div className="p-4 bg-green-900/20 rounded-lg"><p className="text-3xl font-bold text-green-300">{stats.synced}</p><p className="text-sm text-green-400">Na Lista de Marketing</p></div>
-                <div className="p-4 bg-yellow-900/20 rounded-lg"><p className="text-3xl font-bold text-yellow-300">{stats.notSynced}</p><p className="text-sm text-yellow-400">Fora da Lista de Marketing</p></div>
+            {/* Seção de Estatísticas e Ações */}
+            <div className="mb-6 p-4 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
+                <p className="text-sm text-center text-[#8C8C8C] mb-4">
+                    A lista abaixo exibe apenas os contatos da sua agenda que possuem uma conta ativa no WhatsApp.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
+                    <div className="p-4 bg-[#0D0D0D]/50 rounded-lg"><p className="text-3xl font-bold text-white">{stats.total}</p><p className="text-sm text-[#8C8C8C]">Contatos Válidos</p></div>
+                    <div className="p-4 bg-green-900/20 rounded-lg"><p className="text-3xl font-bold text-green-300">{stats.synced}</p><p className="text-sm text-green-400">Na Lista de Marketing</p></div>
+                    <div className="p-4 bg-yellow-900/20 rounded-lg"><p className="text-3xl font-bold text-yellow-300">{stats.notSynced}</p><p className="text-sm text-yellow-400">Fora da Lista de Marketing</p></div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <button onClick={handleSyncSelected} disabled={selectedContacts.size === 0} className="flex-1 bg-[#F2F2F2] text-[#0D0D0D] font-bold py-2 px-4 rounded-md hover:bg-white disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
+                        Adicionar {selectedContacts.size} Selecionado(s)
+                    </button>
+                    <button onClick={handleSyncAllNew} disabled={stats.notSynced === 0} className="flex-1 bg-[#403F3D] text-white font-bold py-2 px-4 rounded-md hover:bg-[#8C8C8C] disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
+                        Adicionar Todos os {stats.notSynced} Novos
+                    </button>
+                </div>
+                {syncStatus && <p className="text-center mt-4 p-2 bg-blue-900/30 rounded-md">{syncStatus}</p>}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-6 p-4 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
-                <button onClick={handleSyncSelected} disabled={selectedContacts.size === 0} className="flex-1 bg-[#F2F2F2] text-[#0D0D0D] font-bold py-2 px-4 rounded-md hover:bg-white disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
-                    Adicionar {selectedContacts.size} Selecionado(s)
-                </button>
-                <button onClick={handleSyncAllNew} disabled={stats.notSynced === 0} className="flex-1 bg-[#403F3D] text-white font-bold py-2 px-4 rounded-md hover:bg-[#8C8C8C] disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
-                    Adicionar Todos os {stats.notSynced} Novos
-                </button>
-            </div>
-            {syncStatus && <p className="text-center mb-4 p-2 bg-blue-900/30 rounded-md">{syncStatus}</p>}
-
+            {/* Barra de Busca e Paginação */}
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
               <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full sm:w-1/2 p-2 bg-[#0D0D0D] border border-[#403F3D] rounded-md text-[#F2F2F2] focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"/>
               <div className="flex items-center gap-2 text-[#F2F2F2]">
@@ -158,6 +160,7 @@ export default function ContatosPage() {
               </div>
             </div>
 
+            {/* Tabela de Contatos */}
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead className="bg-[#0D0D0D]/50">
@@ -175,7 +178,7 @@ export default function ContatosPage() {
                     <tr><td colSpan={4} className="text-center p-8">Nenhum contato encontrado.</td></tr>
                   ) : (
                     paginatedContacts.map((contact) => (
-                      <tr key={contact.id} className={`${contact.isSynced ? 'bg-green-900/10' : 'hover:bg-white/5'}`}>
+                      <tr key={contact.id} className={`${contact.isSynced ? 'bg-green-900/10 opacity-60' : 'hover:bg-white/5'}`}>
                         <td className="p-4">
                           <input type="checkbox" disabled={contact.isSynced} checked={selectedContacts.has(contact.id)} onChange={() => handleSelectContact(contact.id)} className="h-5 w-5 rounded bg-[#403F3D] border-[#8C8C8C] text-blue-400 focus:ring-blue-500 disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"/>
                         </td>

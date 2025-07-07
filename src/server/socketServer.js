@@ -100,34 +100,28 @@ function initializeSocketServer(httpServer, whatsappClient) {
         socket.on('contacts:get-all', async () => {
             console.log('[CONTACTS] Recebido pedido para buscar e comparar todos os contatos.');
             try {
-                // 1. Pega todos os contatos do WhatsApp
                 const allWaContacts = await whatsappClient.getContacts();
-                
-                // 2. Pega todos os números que JÁ ESTÃO no nosso banco de dados
-                const syncedContacts = await prisma.contact.findMany({
-                    select: { number: true } // Pega apenas o campo 'number' para eficiência
-                });
+                const syncedContacts = await prisma.contact.findMany({ select: { number: true } });
                 const syncedNumbers = new Set(syncedContacts.map(c => c.number));
 
-                // 3. Compara as duas listas e enriquece os dados
                 const formattedContacts = allWaContacts
-                    // Filtra para mostrar apenas contatos de pessoas, não de grupos
-                    .filter(contact => !contact.isGroup && contact.number) 
+
+                    .filter(contact => !contact.isGroup && contact.number && contact.isWAContact) 
                     .map(contact => ({
                         id: contact.id._serialized,
                         name: contact.name || null,
                         pushname: contact.pushname || '',
                         number: contact.number,
-                        isSynced: syncedNumbers.has(contact.number), // <-- A propriedade "mágica"
+                        isSynced: syncedNumbers.has(contact.number),
                     }));
                 
+                console.log(`[CONTACTS] Total de ${allWaContacts.length} contatos encontrados, ${formattedContacts.length} são contas válidas do WhatsApp.`);
                 socket.emit('contacts:list', formattedContacts);
             } catch (error) {
                 console.error('[CONTACTS] Erro ao buscar e comparar contatos:', error);
                 socket.emit('contacts:error', 'Falha ao buscar a lista de contatos.');
             }
         });
-
         socket.on('contacts:sync-selected', async (contactsToSync) => {
             if (!contactsToSync || contactsToSync.length === 0) return;
             

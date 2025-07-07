@@ -1,22 +1,18 @@
-// src/server/socketServer.js (Final, Completo e Corrigido)
-
 const { Server } = require('socket.io');
 const fs = require('fs').promises;
 const path = require('path');
 const prisma = require('../lib/prisma');
-const qrcode = require('qrcode'); // Importa a biblioteca para gerar o QR Code
+const qrcode = require('qrcode');
 const { syncContactsFromGroups } = require('./services/groupSyncService');
 const { startCampaign, pauseCampaign, resumeCampaign, cancelCampaign } = require('./services/campaignService');
 const { importContactsFromFile } = require('./services/contactImportService');
 
-// Objeto de estado para manter as informações da conexão.
 let whatsappState = {
   status: 'initializing',
   qrCode: null,
   userInfo: null
 };
 
-// Travas para evitar execuções simultâneas.
 let isSyncRunning = false;
 
 function initializeSocketServer(httpServer, whatsappClient) {
@@ -28,7 +24,6 @@ function initializeSocketServer(httpServer, whatsappClient) {
         if (whatsappState.status === 'ready') socket.emit('ready', whatsappState.userInfo);
         else if (whatsappState.status === 'qr') socket.emit('qr', whatsappState.qrCode);
 
-        // --- CRUD de Mensagens de Texto ---
         socket.on('messages:get', async () => {
             const messages = await prisma.message.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('messages:list', messages);
@@ -49,7 +44,6 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('messages:list', messages);
         });
         
-        // --- CRUD de Mídia da Campanha ---
         socket.on('campaignMedia:get', async () => {
             const media = await prisma.campaignMedia.findMany({ orderBy: { createdAt: 'desc' } });
             socket.emit('campaignMedia:list', media);
@@ -70,9 +64,8 @@ function initializeSocketServer(httpServer, whatsappClient) {
             }
         });
 
-        // --- Controles da Campanha ---
-        socket.on('campaign:start', async () => {
-            await startCampaign(whatsappClient, io);
+        socket.on('campaign:start', async (options) => {
+            await startCampaign(whatsappClient, io, options);
         });
         socket.on('campaign:pause', () => {
             pauseCampaign();
@@ -87,20 +80,8 @@ function initializeSocketServer(httpServer, whatsappClient) {
             io.emit('campaign-state-change', 'cancelling');
         });
 
-        // --- Importação de Contatos ---
         socket.on('contacts:import', async ({ filePath }) => {
             await importContactsFromFile(filePath, io);
-        });
-
-        // --- Outras Funcionalidades ---
-        socket.on('whatsapp:logout', async () => {
-            try {
-                await whatsappClient.logout(); await whatsappClient.destroy();
-            } catch (error) { console.error(error); }
-            const sessionPath = path.join(__dirname, '../../.wwebjs_auth');
-            try { await fs.rm(sessionPath, { recursive: true, force: true }); } catch (error) { console.error(error); }
-            whatsappState = { status: 'initializing', qrCode: null, userInfo: null };
-            whatsappClient.initialize();
         });
 
         socket.on('get-all-groups', async () => {
@@ -115,11 +96,105 @@ function initializeSocketServer(httpServer, whatsappClient) {
             await syncContactsFromGroups(whatsappClient, ids, io);
             isSyncRunning = false;
         });
+        
+        socket.on('contacts:get-all', async () => {
+            console.log('[CONTACTS] Recebido pedido para buscar e comparar todos os contatos.');
+            try {
+                // 1. Pega todos os contatos do WhatsApp
+                const allWaContacts = await whatsappClient.getContacts();
+                
+                // 2. Pega todos os números que JÁ ESTÃO no nosso banco de dados
+                const syncedContacts = await prisma.contact.findMany({
+                    select: { number: true } // Pega apenas o campo 'number' para eficiência
+                });
+                const syncedNumbers = new Set(syncedContacts.map(c => c.number));
+
+                // 3. Compara as duas listas e enriquece os dados
+                const formattedContacts = allWaContacts
+                    // Filtra para mostrar apenas contatos de pessoas, não de grupos
+                    .filter(contact => !contact.isGroup && contact.number) 
+                    .map(contact => ({
+                        id: contact.id._serialized,
+                        name: contact.name || null,
+                        pushname: contact.pushname || '',
+                        number: contact.number,
+                        isSynced: syncedNumbers.has(contact.number), // <-- A propriedade "mágica"
+                    }));
+                
+                socket.emit('contacts:list', formattedContacts);
+            } catch (error) {
+                console.error('[CONTACTS] Erro ao buscar e comparar contatos:', error);
+                socket.emit('contacts:error', 'Falha ao buscar a lista de contatos.');
+            }
+        });
+
+        socket.on('contacts:sync-selected', async (contactsToSync) => {
+            if (!contactsToSync || contactsToSync.length === 0) return;
+            
+            console.log(`[CONTACTS] Recebido pedido para sincronizar ${contactsToSync.length} contatos.`);
+            try {
+                // Prepara os dados para o Prisma
+                const dataToCreate = contactsToSync.map(contact => ({
+                    number: contact.number,
+                    pushname: contact.pushname,
+                }));
+
+                // Usa createMany para inserir todos de uma vez, ignorando duplicatas.
+                // Isso é muito mais rápido que um loop de upserts.
+                const result = await prisma.contact.createMany({
+                    data: dataToCreate,
+                    skipDuplicates: true,
+                });
+
+                console.log(`[CONTACTS] Sincronização concluída. ${result.count} novos contatos adicionados.`);
+                // Envia um evento de sucesso para o frontend poder atualizar a lista.
+                socket.emit('contacts:sync-complete', { count: result.count });
+            } catch (error) {
+                console.error('[CONTACTS] Erro durante a sincronização:', error);
+                socket.emit('contacts:sync-error', 'Falha ao salvar os contatos.');
+            }
+        });
+
+        socket.on('groups:get-synced', async () => {
+            const syncedGroups = await prisma.group.findMany({
+                select: { id: true, name: true },
+                orderBy: { name: 'asc' }
+            });
+            socket.emit('groups:synced-list', syncedGroups);
+        });
+
+        socket.on('whatsapp:logout', async () => {
+            try {
+                await whatsappClient.logout(); await whatsappClient.destroy();
+            } catch (error) { console.error(error); }
+            const sessionPath = path.join(__dirname, '../../.wwebjs_auth');
+            try { await fs.rm(sessionPath, { recursive: true, force: true }); } catch (error) { console.error(error); }
+            whatsappState = { status: 'initializing', qrCode: null, userInfo: null };
+            whatsappClient.initialize();
+        });
+
+         socket.on('logs:get', async () => {
+            console.log('[LOGS] Recebido pedido para buscar logs de envio.');
+            try {
+                const dailyLogs = await prisma.$queryRaw`
+                    SELECT DATE(sentAt) as date, COUNT(*) as count
+                    FROM "SentMessageLog"
+                    GROUP BY DATE(sentAt)
+                    ORDER BY DATE(sentAt) DESC
+                `;
+                const formattedLogs = dailyLogs.map(log => ({
+                    ...log,
+                    count: Number(log.count)
+                }));
+                socket.emit('logs:data', formattedLogs);
+            } catch (error) {
+                console.error('[LOGS] Erro ao buscar logs:', error);
+            }
+        });
 
         socket.on('disconnect', () => console.log(`[Socket.IO] Cliente desconectado: ${socket.id}`));
     });
 
-    // --- Listeners do WhatsApp com a correção do QR Code ---
     whatsappClient.on('qr', async (qr) => {
         console.log('[WHATSAPP] QR Code recebido. Convertendo para DataURL...');
         try {

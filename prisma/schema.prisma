@@ -1,19 +1,13 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite" // <-- MUDANÇA 1: De "postgresql" para "sqlite"
+  url      = "file:./dev.db" // <-- MUDANÇA 2: Aponta para um arquivo local
 }
 
-// Um grupo pode ter vários contatos
 model Group {
   id          String    @id @default(cuid())
   whatsappId  String    @unique
@@ -22,7 +16,6 @@ model Group {
   contacts    Contact[] // Relação: Um grupo tem muitos contatos
 }
 
-// Um contato pode estar em vários grupos
 model Contact {
   id               String    @id @default(cuid())
   number           String    @unique
@@ -44,4 +37,11 @@ model CampaignMedia {
   id        String   @id @default(cuid())
   filePath  String   @unique // Caminho público do arquivo, ex: /uploads/imagem.png
   createdAt DateTime @default(now())
+}
+
+model SentMessageLog {
+  id            String   @id @default(cuid())
+  contactNumber String   // Para quem foi enviado
+  messageTitle  String   // O título da mensagem enviada
+  sentAt        DateTime @default(now()) // Quando foi enviado
 }

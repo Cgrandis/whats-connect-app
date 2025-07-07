@@ -28,46 +28,59 @@ function cancelCampaign() {
   }
 }
 
-async function startCampaign(client, io) {
+async function startCampaign(client, io, options = { target: 'database' }) {
   if (campaignState.status !== 'idle') {
     io.emit('campaign-status', 'Erro: Uma campanha já está em andamento ou pausada.');
     return;
   }
   
   campaignState.status = 'running';
-  console.log('\n[CAMPANHA] INICIANDO CAMPANHA DE ENVIO...');
-  io.emit('campaign-status', 'Campanha iniciada! Verificando dados...');
+  io.emit('campaign-status', 'Campanha iniciada! Buscando contatos alvo...');
   io.emit('campaign-state-change', campaignState.status); 
 
   try {
-    const [contactsToSend, allMessages, allMedia] = await Promise.all([
-      prisma.contact.findMany({ where: { campaignSentAt: null } }),
+    let contactsToSend = [];
+    
+    if (options.target === 'whatsapp') {
+      console.log('[CAMPANHA] Alvo: Todos os contatos do WhatsApp.');
+      
+      const allWaContacts = await client.getContacts();
+      const validWaContacts = allWaContacts.filter(c => !c.isGroup && c.number); // Apenas pessoas, não grupos
+
+      const sentContacts = await prisma.contact.findMany({
+        where: { campaignSentAt: { not: null } },
+        select: { number: true }
+      });
+      const sentNumbers = new Set(sentContacts.map(c => c.number));
+
+      contactsToSend = validWaContacts.filter(c => !sentNumbers.has(c.number));
+
+    } else {
+      console.log('[CAMPANHA] Alvo: Contatos da Lista de Marketing (Banco de Dados).');
+      contactsToSend = await prisma.contact.findMany({
+        where: { campaignSentAt: null },
+      });
+    }
+
+    const [allMessages, allMedia] = await Promise.all([
       prisma.message.findMany(),
       prisma.campaignMedia.findMany()
     ]);
 
     if (allMessages.length === 0 || contactsToSend.length === 0) {
-        const errorMsg = allMessages.length === 0 ? 'Nenhuma mensagem de texto foi cadastrada.' : 'Nenhum contato novo para a campanha.';
+        const errorMsg = allMessages.length === 0 ? 'Nenhuma mensagem cadastrada.' : 'Nenhum contato novo para o alvo selecionado.';
         io.emit('campaign-status', `Erro: ${errorMsg}`);
         campaignState.status = 'idle';
         io.emit('campaign-state-change', campaignState.status);
         return;
     }
     
-    console.log(`[CAMPANHA] ${contactsToSend.length} contatos, ${allMessages.length} textos e ${allMedia.length} mídias na fila.`);
+    console.log(`[CAMPANHA] ${contactsToSend.length} contatos encontrados para o alvo selecionado.`);
     io.emit('campaign-status', `${contactsToSend.length} contatos na fila.`);
 
     for (let i = 0; i < contactsToSend.length; i++) {
-      while (campaignState.status === 'paused') {
-        io.emit('campaign-status', 'Campanha pausada. Aguardando comando...');
-        await sleep(2000);
-      }
-      
-      if (campaignState.status === 'cancelling') {
-        console.log('[CAMPANHA] Loop interrompido devido ao cancelamento.');
-        io.emit('campaign-status', 'Campanha cancelada com sucesso.');
-        break; 
-      }
+      while (campaignState.status === 'paused') { /* ... */ await sleep(2000); }
+      if (campaignState.status === 'cancelling') { /* ... */ break; }
       
       const contact = contactsToSend[i];
       const chatId = `${contact.number}@c.us`;
@@ -80,8 +93,6 @@ async function startCampaign(client, io) {
           const mediaPath = path.join(__dirname, '../../../public', sanitizedPath);
           if (fs.existsSync(mediaPath)) {
               mediaToSend = MessageMedia.fromFilePath(mediaPath);
-          } else {
-              console.warn(`[AVISO] Arquivo de mídia não encontrado no caminho: ${mediaPath}`);
           }
       }
       
@@ -93,7 +104,19 @@ async function startCampaign(client, io) {
           } else {
               await client.sendMessage(chatId, randomMessage.body);
           }
-          await prisma.contact.update({ where: { id: contact.id }, data: { campaignSentAt: new Date() } });
+          
+          await prisma.contact.upsert({
+              where: { number: contact.number },
+              update: { campaignSentAt: new Date() },
+              create: { number: contact.number, pushname: contact.pushname || '', campaignSentAt: new Date() }
+          });
+
+          await prisma.sentMessageLog.create({
+            data: {
+              contactNumber: contact.number,
+              messageTitle: randomMessage.title,
+            }
+          });
       } catch (sendError) {
           console.error(`[CAMPANHA] ERRO ao enviar para ${contact.number}:`, sendError.message);
       }

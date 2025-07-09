@@ -1,4 +1,5 @@
 const prisma = require('../../lib/prisma');
+const { cleanDuplicateContacts } = require('../../../scripts/clean-duplicate-contacts');
 
 async function syncContactsFromGroups(client, targetGroupIds, io) {
   console.log('\n[SYNC] INICIANDO SINCRONIZAÇÃO DE GRUPOS SELECIONADOS...');
@@ -55,8 +56,12 @@ async function syncContactsFromGroups(client, targetGroupIds, io) {
       console.log(`[SYNC] Grupo "${groupChat.name}" salvo e contatos vinculados.`);
     }
 
-    console.log('\n[SYNC] Sincronização concluída!');
-    io.emit('sync-status', '✅ Sincronização de grupos selecionados concluída!');
+    console.log('\n[SYNC] Sincronização de grupos concluída!');
+    
+    io.emit('sync-status', 'Verificando e limpando contatos duplicados...');
+    await cleanDuplicateContacts();
+
+    io.emit('sync-status', '✅ Sincronização e limpeza concluídas com sucesso!');
 
   } catch (error) {
     console.error('[SYNC] Erro durante a sincronização:', error);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useSocket } from '../../src/context/SocketContext';
 
@@ -11,18 +11,23 @@ interface Contact {
   number: string;
   isSynced: boolean;
 }
-
-const CONTACTS_PER_PAGE = 50;
+type SyncFilter = 'all' | 'synced' | 'notSynced';
 
 export default function ContatosPage() {
   const { socket, isConnected } = useSocket();
   
   const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterAreaCode44, setFilterAreaCode44] = useState(false);
+  const [syncFilter, setSyncFilter] = useState<SyncFilter>('all');
+
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
-  const [syncStatus, setSyncStatus] = useState('');
+  const [syncStatus, setSyncStatus] = useState('');  
+  const [contactsPerPage, setContactsPerPage] = useState(50);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   const fetchContacts = useCallback(() => {
     if (socket && isConnected) {
@@ -61,25 +66,71 @@ export default function ContatosPage() {
   }, [socket, fetchContacts]);
 
   const filteredContacts = useMemo(() => {
-    if (!searchTerm) return allContacts;
-    return allContacts.filter(c =>
-      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.pushname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.number.includes(searchTerm)
-    );
-  }, [allContacts, searchTerm]);
+    let contacts = allContacts;
+
+    if (syncFilter === 'synced') {
+      contacts = contacts.filter(c => c.isSynced);
+    } else if (syncFilter === 'notSynced') {
+      contacts = contacts.filter(c => !c.isSynced);
+    }
+
+    if (filterAreaCode44) {
+      contacts = contacts.filter(c => c.number.startsWith('5544'));
+    }
+
+    if (searchTerm) {
+      contacts = contacts.filter(c =>
+        c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.pushname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.number.includes(searchTerm)
+      );
+    }
+    
+    return contacts;
+  }, [allContacts, searchTerm, filterAreaCode44, syncFilter]);
 
   const stats = useMemo(() => {
-    const syncedCount = allContacts.filter(c => c.isSynced).length;
+    const syncedCount = filteredContacts.filter(c => c.isSynced).length;
     return {
-      total: allContacts.length,
+      total: filteredContacts.length,
       synced: syncedCount,
-      notSynced: allContacts.length - syncedCount,
+      notSynced: filteredContacts.length - syncedCount,
     };
-  }, [allContacts]);
+  }, [filteredContacts]);
 
-  const paginatedContacts = filteredContacts.slice((currentPage - 1) * CONTACTS_PER_PAGE, currentPage * CONTACTS_PER_PAGE);
-  const totalPages = Math.ceil(filteredContacts.length / CONTACTS_PER_PAGE);
+  const paginatedContacts = filteredContacts.slice((currentPage - 1) * contactsPerPage, currentPage * contactsPerPage);
+  const totalPages = Math.ceil(filteredContacts.length / contactsPerPage);
+
+  const selectableContactsOnPage = useMemo(() => paginatedContacts.filter(c => !c.isSynced), [paginatedContacts]);
+  const selectedOnPageCount = selectableContactsOnPage.filter(c => selectedContacts.has(c.id)).length;
+
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      const allSelected = selectedOnPageCount > 0 && selectedOnPageCount === selectableContactsOnPage.length;
+      const someSelected = selectedOnPageCount > 0 && selectedOnPageCount < selectableContactsOnPage.length;
+      selectAllCheckboxRef.current.checked = allSelected;
+      selectAllCheckboxRef.current.indeterminate = someSelected;
+    }
+  }, [selectedOnPageCount, selectableContactsOnPage.length]);
+
+  const handleSelectAllOnPage = () => {
+    const allSelected = selectedOnPageCount === selectableContactsOnPage.length;
+    const pageContactIds = selectableContactsOnPage.map(c => c.id);
+    setSelectedContacts(prev => {
+      const newSelection = new Set(prev);
+      if (allSelected) {
+        pageContactIds.forEach(id => newSelection.delete(id));
+      } else {
+        pageContactIds.forEach(id => newSelection.add(id));
+      }
+      return newSelection;
+    });
+  };
+
+  const handleItemsPerPageChange = (value: number) => {
+    setContactsPerPage(value);
+    setCurrentPage(1);
+  };
 
   const goToPage = (page: number) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
@@ -103,14 +154,14 @@ export default function ContatosPage() {
   
   const handleSyncAllNew = () => {
     if (!socket) return;
-    const newContacts = allContacts.filter(c => !c.isSynced);
+    const newContacts = filteredContacts.filter(c => !c.isSynced);
     if (newContacts.length === 0) {
-        setSyncStatus('Nenhum contato novo para adicionar.');
+        setSyncStatus('Nenhum contato novo para adicionar com os filtros atuais.');
         setTimeout(() => setSyncStatus(''), 3000);
         return;
     }
-    if (window.confirm(`Você tem certeza que deseja adicionar ${newContacts.length} novo(s) contato(s) à sua lista de marketing?`)) {
-        setSyncStatus(`Sincronizando todos os ${newContacts.length} novo(s) contato(s)...`);
+    if (window.confirm(`Você tem certeza que deseja adicionar ${newContacts.length} novo(s) contato(s) (visíveis) à sua lista de marketing?`)) {
+        setSyncStatus(`Sincronizando todos os ${newContacts.length} novo(s) contato(s) visíveis...`);
         socket.emit('contacts:sync-selected', newContacts);
     }
   };
@@ -129,43 +180,72 @@ export default function ContatosPage() {
           </p>
         ) : (
           <>
-            {/* Seção de Estatísticas e Ações */}
             <div className="mb-6 p-4 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
                 <p className="text-sm text-center text-[#8C8C8C] mb-4">
-                    A lista abaixo exibe apenas os contatos da sua agenda que possuem uma conta ativa no WhatsApp.
+                    As estatísticas abaixo refletem os contatos visíveis com os filtros atuais.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-center">
-                    <div className="p-4 bg-[#0D0D0D]/50 rounded-lg"><p className="text-3xl font-bold text-white">{stats.total}</p><p className="text-sm text-[#8C8C8C]">Contatos Válidos</p></div>
-                    <div className="p-4 bg-green-900/20 rounded-lg"><p className="text-3xl font-bold text-green-300">{stats.synced}</p><p className="text-sm text-green-400">Na Lista de Marketing</p></div>
-                    <div className="p-4 bg-yellow-900/20 rounded-lg"><p className="text-3xl font-bold text-yellow-300">{stats.notSynced}</p><p className="text-sm text-yellow-400">Fora da Lista de Marketing</p></div>
+                    <div className="p-4 bg-[#0D0D0D]/50 rounded-lg">
+                      <p className="text-3xl font-bold text-white">{stats.total}</p>
+                      <p className="text-sm text-[#8C8C8C]">Contatos Visíveis</p>
+                    </div>
+                    <div className="p-4 bg-green-900/20 rounded-lg">
+                      <p className="text-3xl font-bold text-green-300">{stats.synced}</p>
+                      <p className="text-sm text-green-400">Na Lista de Marketing</p>
+                      </div>
+                    <div className="p-4 bg-yellow-900/20 rounded-lg">
+                      <p className="text-3xl font-bold text-yellow-300">{stats.notSynced}</p>
+                      <p className="text-sm text-yellow-400">Fora da Lista de Marketing</p>
+                    </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <button onClick={handleSyncSelected} disabled={selectedContacts.size === 0} className="flex-1 bg-[#F2F2F2] text-[#0D0D0D] font-bold py-2 px-4 rounded-md hover:bg-white disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
-                        Adicionar {selectedContacts.size} Selecionado(s)
-                    </button>
-                    <button onClick={handleSyncAllNew} disabled={stats.notSynced === 0} className="flex-1 bg-[#403F3D] text-white font-bold py-2 px-4 rounded-md hover:bg-[#8C8C8C] disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">
-                        Adicionar Todos os {stats.notSynced} Novos
-                    </button>
+                    <button onClick={handleSyncSelected} disabled={selectedContacts.size === 0} className="flex-1 bg-[#F2F2F2] text-[#0D0D0D] font-bold py-2 px-4 rounded-md hover:bg-white disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">Adicionar {selectedContacts.size} Selecionado(s)</button>
+                    <button onClick={handleSyncAllNew} disabled={stats.notSynced === 0} className="flex-1 bg-[#403F3D] text-white font-bold py-2 px-4 rounded-md hover:bg-[#8C8C8C] disabled:bg-[#403F3D] disabled:text-[#8C8C8C] transition-all">Adicionar Todos os {stats.notSynced} Novos Visíveis</button>
                 </div>
                 {syncStatus && <p className="text-center mt-4 p-2 bg-blue-900/30 rounded-md">{syncStatus}</p>}
             </div>
 
-            {/* Barra de Busca e Paginação */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-              <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full sm:w-1/2 p-2 bg-[#0D0D0D] border border-[#403F3D] rounded-md text-[#F2F2F2] focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"/>
-              <div className="flex items-center gap-2 text-[#F2F2F2]">
-                <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">Anterior</button>
-                <span>Página {currentPage} de {totalPages}</span>
-                <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages || totalPages === 0} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">Próxima</button>
-              </div>
+            <div className="space-y-4 mb-4 p-4 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
+                <input type="text" placeholder="Buscar por nome ou número..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full p-2 bg-[#1c1c1c] border border-[#403F3D] rounded-md text-[#F2F2F2] focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"/>
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <fieldset className="flex items-center gap-4 p-2 border border-[#403F3D] rounded-lg">
+                        <legend className="px-1 text-xs text-[#8C8C8C]">Filtrar por Status:</legend>
+                        <div className="flex gap-4">
+                            <div><input type="radio" id="f_all" name="syncFilter" value="all" checked={syncFilter === 'all'} onChange={() => { setSyncFilter('all'); setCurrentPage(1); }} className="mr-1"/><label htmlFor="f_all">Todos</label></div>
+                            <div><input type="radio" id="f_synced" name="syncFilter" value="synced" checked={syncFilter === 'synced'} onChange={() => { setSyncFilter('synced'); setCurrentPage(1); }} className="mr-1"/><label htmlFor="f_synced">Na Lista</label></div>
+                            <div><input type="radio" id="f_not" name="syncFilter" value="notSynced" checked={syncFilter === 'notSynced'} onChange={() => { setSyncFilter('notSynced'); setCurrentPage(1); }} className="mr-1"/><label htmlFor="f_not">Fora da Lista</label></div>
+                        </div>
+                    </fieldset>
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="dddFilter" checked={filterAreaCode44} onChange={(e) => { setFilterAreaCode44(e.target.checked); setCurrentPage(1); }} className="h-5 w-5 rounded bg-[#403F3D] border-[#8C8C8C] text-blue-400 focus:ring-blue-500 cursor-pointer"/>
+                      <label htmlFor="dddFilter" className="text-sm font-medium text-[#F2F2F2] cursor-pointer">Apenas DDD 44</label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#8C8C8C]">Itens por pág:</span>
+                      <select value={contactsPerPage} onChange={(e) => handleItemsPerPageChange(Number(e.target.value))} className="p-1 bg-[#0D0D0D] border border-[#403F3D] rounded-md text-sm">
+                        <option value={50}>50</option><option value={100}>100</option><option value={150}>150</option>
+                      </select>
+                    </div>
+                </div>
             </div>
 
+            {/* Controles de Paginação */}
+            <div className="flex justify-center items-center gap-2 text-[#F2F2F2] mb-4">
+              <button onClick={() => goToPage(1)} disabled={currentPage === 1} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">« Início</button>
+              <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">‹ Anterior</button>
+              <span>Página {currentPage} de {totalPages}</span>
+              <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">Próxima ›</button>
+              <button onClick={() => goToPage(totalPages)} disabled={currentPage >= totalPages} className="px-3 py-1 bg-[#403F3D] rounded-md disabled:opacity-50">Fim »</button>
+            </div>
+            
             {/* Tabela de Contatos */}
             <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead className="bg-[#0D0D0D]/50">
                   <tr>
-                    <th className="p-4 text-left text-xs font-medium text-[#BFBFBF] uppercase w-12"></th>
+                    <th className="p-4 text-left text-xs font-medium text-[#BFBFBF] uppercase w-12">
+                      <input type="checkbox" ref={selectAllCheckboxRef} onChange={handleSelectAllOnPage} disabled={selectableContactsOnPage.length === 0} className="h-5 w-5 rounded bg-[#403F3D] border-[#8C8C8C] text-blue-400 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"/>
+                    </th>
                     <th className="p-4 text-left text-xs font-medium text-[#BFBFBF] uppercase">Nome no WhatsApp</th>
                     <th className="p-4 text-left text-xs font-medium text-[#BFBFBF] uppercase">Número</th>
                     <th className="p-4 text-left text-xs font-medium text-[#BFBFBF] uppercase">Status</th>
@@ -175,7 +255,7 @@ export default function ContatosPage() {
                   {isLoading ? (
                     <tr><td colSpan={4} className="text-center p-8">Carregando contatos...</td></tr>
                   ) : paginatedContacts.length === 0 ? (
-                    <tr><td colSpan={4} className="text-center p-8">Nenhum contato encontrado.</td></tr>
+                    <tr><td colSpan={4} className="text-center p-8">Nenhum contato encontrado com os filtros atuais.</td></tr>
                   ) : (
                     paginatedContacts.map((contact) => (
                       <tr key={contact.id} className={`${contact.isSynced ? 'bg-green-900/10 opacity-60' : 'hover:bg-white/5'}`}>

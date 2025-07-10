@@ -43,18 +43,14 @@ async function startCampaign(client, io, options = { target: 'database' }) {
     
     if (options.target === 'whatsapp') {
       console.log('[CAMPANHA] Alvo: Todos os contatos do WhatsApp.');
-      
       const allWaContacts = await client.getContacts();
-      const validWaContacts = allWaContacts.filter(c => !c.isGroup && c.number); // Apenas pessoas, não grupos
-
+      const validWaContacts = allWaContacts.filter(c => !c.isGroup && c.number && c.isWAContact);
       const sentContacts = await prisma.contact.findMany({
         where: { campaignSentAt: { not: null } },
         select: { number: true }
       });
       const sentNumbers = new Set(sentContacts.map(c => c.number));
-
       contactsToSend = validWaContacts.filter(c => !sentNumbers.has(c.number));
-
     } else {
       console.log('[CAMPANHA] Alvo: Contatos da Lista de Marketing (Banco de Dados).');
       contactsToSend = await prisma.contact.findMany({
@@ -79,8 +75,8 @@ async function startCampaign(client, io, options = { target: 'database' }) {
     io.emit('campaign-status', `${contactsToSend.length} contatos na fila.`);
 
     for (let i = 0; i < contactsToSend.length; i++) {
-      while (campaignState.status === 'paused') { /* ... */ await sleep(2000); }
-      if (campaignState.status === 'cancelling') { /* ... */ break; }
+      while (campaignState.status === 'paused') { await sleep(2000); }
+      if (campaignState.status === 'cancelling') { break; }
       
       const contact = contactsToSend[i];
       const chatId = `${contact.number}@c.us`;
@@ -136,4 +132,4 @@ async function startCampaign(client, io, options = { target: 'database' }) {
   }
 }
 
-module.exports = { startCampaign, pauseCampaign, resumeCampaign, cancelCampaign };
+module.exports = { startCampaign, pauseCampaign, resumeCampaign, cancelCampaign, campaignState };

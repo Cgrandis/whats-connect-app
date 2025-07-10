@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSocket } from '../src/context/SocketContext';
 
-type CampaignState = 'idle' | 'running' | 'paused' | 'cancelling';
+interface SyncedGroup { id: string; name: string; }
 type TargetType = 'database' | 'whatsapp';
 
 const Icon = ({ path, className }: { path: string, className?: string }) => (
@@ -26,37 +26,79 @@ const Modal = ({ isOpen, onClose, children }: { isOpen: boolean, onClose: () => 
 };
 
 export default function HomePage() { 
-  const { socket, isConnected, qrCode, statusMessage, userInfo } = useSocket();
+  const { socket, isConnected, qrCode, statusMessage, userInfo, campaignState } = useSocket();
   
   const [campaignStatus, setCampaignStatus] = useState<string>('');
-  const [campaignState, setCampaignState] = useState<CampaignState>('idle');
-  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [targetType, setTargetType] = useState<TargetType>('database');
+  const [syncedGroups, setSyncedGroups] = useState<SyncedGroup[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!socket) return;
+
     const onCampaignStatus = (msg: string) => setCampaignStatus(msg);
-    const onCampaignStateChange = (newState: CampaignState) => setCampaignState(newState);
+    const onSyncedGroupsList = (groups: SyncedGroup[]) => setSyncedGroups(groups);
+    
     socket.on('campaign-status', onCampaignStatus);
-    socket.on('campaign-state-change', onCampaignStateChange);
+    socket.on('groups:synced-list', onSyncedGroupsList);
+    
     return () => {
       socket.off('campaign-status', onCampaignStatus);
-      socket.off('campaign-state-change', onCampaignStateChange);
+      socket.off('groups:synced-list', onSyncedGroupsList);
     };
   }, [socket]);
 
+  const openCampaignModal = () => {
+    if (socket) {
+      socket.emit('groups:get-synced');
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleGroupSelection = (groupId: string) => {
+    setSelectedGroups(prev => {
+        const newSelection = new Set(prev);
+        if (newSelection.has(groupId)) newSelection.delete(groupId);
+        else newSelection.add(groupId);
+        return newSelection;
+    });
+  };
+
   const handleStartCampaign = () => {
     if (!socket) return;
-    const options = { target: targetType };
+    
+    let options = { target: targetType, groupIds: [] as string[] };
+    options.groupIds = Array.from(selectedGroups);
+    
     socket.emit('campaign:start', options);
     setIsModalOpen(false);
   };
-
+  
   const { handlePause, handleResume, handleCancel } = {
       handlePause: () => socket?.emit('campaign:pause'),
       handleResume: () => socket?.emit('campaign:resume'),
       handleCancel: () => { if (window.confirm('Tem certeza?')) socket?.emit('campaign:cancel'); }
+  };
+
+    const CampaignStatusBanner = () => {
+    if (campaignState === 'running') {
+      return (
+        <div className="w-full p-3 mb-6 rounded-xl text-center font-semibold border bg-green-900/30 border-green-500/40 text-green-300 flex items-center justify-center gap-3 animate-pulse">
+          <Icon path="M12 18.75a.75.75 0 00.75-.75V5.25a.75.75 0 00-1.5 0v12.75a.75.75 0 00.75.75zM8.25 18.75a.75.75 0 00.75-.75V5.25a.75.75 0 00-1.5 0v12.75a.75.75 0 00.75.75zM15.75 18.75a.75.75 0 00.75-.75V5.25a.75.75 0 00-1.5 0v12.75a.75.75 0 00.75.75z" className="w-5 h-5"/>
+          Campanha em Andamento
+        </div>
+      );
+    }
+    if (campaignState === 'paused') {
+      return (
+        <div className="w-full p-3 mb-6 rounded-xl text-center font-semibold border bg-yellow-900/30 border-yellow-500/40 text-yellow-300 flex items-center justify-center gap-3">
+          <Icon path="M15.75 5.25a.75.75 0 01.75.75v12a.75.75 0 01-1.5 0V6a.75.75 0 01.75-.75zM9 5.25a.75.75 0 01.75.75v12a.75.75 0 01-1.5 0V6a.75.75 0 01.75-.75z" className="w-5 h-5"/>
+          Campanha Pausada
+        </div>
+      );
+    }
+    return null;
   };
   
   const renderCampaignControls = () => {
@@ -70,7 +112,7 @@ export default function HomePage() {
         return <p className="text-lg font-semibold text-red-400 animate-pulse">Cancelando...</p>;
       default:
         return (
-          <button onClick={() => setIsModalOpen(true)} className={`${baseButtonClass} bg-[#F2F2F2] text-[#0D0D0D] hover:bg-white`}>
+          <button onClick={openCampaignModal} className={`${baseButtonClass} bg-[#F2F2F2] text-[#0D0D0D] hover:bg-white`}>
             Criar Nova Campanha
           </button>
         );
@@ -92,6 +134,8 @@ export default function HomePage() {
           <p className={`text-base sm:text-lg mb-6 p-3 rounded-xl text-center font-semibold border ${isConnected ? 'bg-green-900/20 border-green-500/30 text-green-300' : 'bg-yellow-900/20 border-yellow-500/30 text-yellow-300'}`}>
             Status: {statusMessage}
           </p>
+
+          <CampaignStatusBanner />
 
           {!isConnected && qrCode && (
             <div className="flex flex-col items-center border-t border-white/10 pt-6 mt-6">
@@ -144,6 +188,7 @@ export default function HomePage() {
         </div>
       </main>
 
+      {/* Modal de Configuração da Campanha */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
         <div className="space-y-4">
             <h2 className="text-2xl font-bold text-[#F2F2F2]">Configurar Campanha</h2>
@@ -156,7 +201,7 @@ export default function HomePage() {
                     <input type="radio" id="database" name="targetType" value="database" checked={targetType === 'database'} readOnly className="h-5 w-5 mt-1 bg-[#403F3D] border-[#8C8C8C] text-blue-400 focus:ring-blue-500"/>
                     <div>
                         <label htmlFor="database" className="font-semibold text-[#F2F2F2] cursor-pointer">Lista de Marketing</label>
-                        <p className="text-sm text-[#8C8C8C]">Envia para todos os contatos que você salvou no seu banco de dados (via sincronização ou importação).</p>
+                        <p className="text-sm text-[#8C8C8C]">Envia para todos os contatos que você salvou no seu banco de dados.</p>
                     </div>
                 </div>
 
@@ -164,7 +209,7 @@ export default function HomePage() {
                     <input type="radio" id="whatsapp" name="targetType" value="whatsapp" checked={targetType === 'whatsapp'} readOnly className="h-5 w-5 mt-1 bg-[#403F3D] border-[#8C8C8C] text-blue-400 focus:ring-blue-500"/>
                     <div>
                         <label htmlFor="whatsapp" className="font-semibold text-[#F2F2F2] cursor-pointer">Toda a Lista de Contatos do WhatsApp</label>
-                        <p className="text-sm text-[#8C8C8C]">Envia para todos os contatos da sua agenda do WhatsApp conectado (exceto os que já receberam a campanha).</p>
+                        <p className="text-sm text-[#8C8C8C]">Envia para todos os contatos da sua agenda (exceto os que já receberam a campanha).</p>
                     </div>
                 </div>
             </fieldset>

@@ -128,16 +128,32 @@ function initializeSocketServer(httpServer, whatsappClient) {
             whatsappState = { status: 'initializing', qrCode: null, userInfo: null };
             whatsappClient.initialize();
         });
+
         socket.on('logs:get', async () => {
-            const allLogs = await prisma.sentMessageLog.findMany({ orderBy: { sentAt: 'desc' } });
-            const dailyCounts = allLogs.reduce((acc, log) => {
-                const dateKey = log.sentAt.toISOString().split('T')[0];
-                acc[dateKey] = (acc[dateKey] || 0) + 1;
-                return acc;
-            }, {});
-            const formattedLogs = Object.entries(dailyCounts).map(([date, count]) => ({ date, count }));
-            socket.emit('logs:data', formattedLogs);
+            console.log('[LOGS] Recebido pedido para buscar logs de envio e respostas detalhadas.');
+            try {
+                // 1. Busca os logs de envio e de resposta em paralelo para maior eficiência.
+                const [allSentLogs, allReplyLogs] = await Promise.all([
+                    prisma.sentMessageLog.findMany({ orderBy: { sentAt: 'desc' } }),
+                    // Busca os logs de resposta detalhados, não apenas a contagem.
+                    prisma.replyLog.findMany({ orderBy: { repliedAt: 'desc' } })
+                ]);
+
+                // 2. Processa os logs de envio para obter a contagem diária.
+                const sentDailyCounts = allSentLogs.reduce((acc, log) => {
+                    const dateKey = log.sentAt.toISOString().split('T')[0];
+                    acc[dateKey] = (acc[dateKey] || 0) + 1;
+                    return acc;
+                }, {});
+                const formattedSentLogs = Object.entries(sentDailyCounts).map(([date, count]) => ({ date, count }));
+                
+                // 3. Envia um objeto contendo a contagem de envios e a lista detalhada de respostas.
+                socket.emit('logs:data', { sent: formattedSentLogs, replies: allReplyLogs });
+            } catch (error) {
+                console.error('[LOGS] Erro ao buscar e processar logs:', error);
+            }
         });
+
         socket.on('disconnect', () => console.log(`[Socket.IO] Cliente desconectado: ${socket.id}`));
     });
 
@@ -155,6 +171,20 @@ function initializeSocketServer(httpServer, whatsappClient) {
     whatsappClient.on('disconnected', (reason) => {
         whatsappState = { status: 'disconnected', qrCode: null, userInfo: null };
         io.emit('disconnected', reason);
+    });
+
+    whatsappClient.on('message', async (message) => {
+        if (message.fromMe) return;
+        try {
+            await prisma.replyLog.create({
+                data: {
+                    contactNumber: message.from.replace('@c.us', ''),
+                    body: message.body,
+                }
+            });
+        } catch (error) {
+            console.error(`[LOGS] Erro ao registrar resposta de ${message.from}:`, error);
+        }
     });
 }
 

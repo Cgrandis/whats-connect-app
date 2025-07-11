@@ -45,3 +45,10 @@ model SentMessageLog {
   messageTitle  String   // O título da mensagem enviada
   sentAt        DateTime @default(now()) // Quando foi enviado
 }
+
+model ReplyLog {
+  id            String   @id @default(cuid())
+  contactNumber String
+  body          String   // <-- ADICIONE ESTA LINHA para o conteúdo da mensagem
+  repliedAt     DateTime @default(now())
+}

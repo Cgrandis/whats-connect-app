@@ -89,58 +89,59 @@ export default function MensagensPage() {
     const handleDelete = (id: string) => { if (socket && window.confirm('Deletar esta mensagem?')) socket.emit('messages:delete', id); };
 
     return (
-        <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 bg-[#0D0D0D] text-[#BFBFBF]">
-            <div className="w-full max-w-7xl bg-[#1c1c1c] border border-[#403F3D] shadow-2xl shadow-black/50 rounded-2xl p-6 sm:p-8">
-                <div className="flex flex-col sm:flex-row justify-between items-center border-b border-white/10 pb-4 mb-6 gap-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left text-[#F2F2F2]">Gerenciador de Conteúdo</h1>
-                    <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline flex-shrink-0 transition-colors">Voltar ao Dashboard</Link>
+        <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 bg-[#D9D9D9] text-[#020F59]">
+            <div className="w-full max-w-7xl bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl rounded-2xl p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left">Gerenciador de Conteúdo</h1>
+                    <Link href="/" className="text-[#0540F2] hover:underline flex-shrink-0">Voltar ao Dashboard</Link>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="p-4 sm:p-6 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
-                        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-[#F2F2F2]">Mídia da Campanha</h2>
+                    
+                    <div className="p-4 sm:p-6 border rounded-xl bg-gray-50/80">
+                        <h2 className="text-xl sm:text-2xl font-semibold mb-4">Mídia da Campanha</h2>
                         <form onSubmit={handleMediaSubmit} className="space-y-4 mb-6">
-                             <input type="file" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} required className="w-full text-sm text-[#BFBFBF] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border file:border-[#403F3D] file:font-semibold file:bg-[#403F3D]/50 file:text-[#F2F2F2] hover:file:bg-[#403F3D] transition-colors cursor-pointer"/>
-                             <button type="submit" disabled={!file} className="w-full bg-[#403F3D] text-white font-bold py-2 px-4 rounded-md hover:bg-[#8C8C8C] disabled:bg-[#403F3D]/50 disabled:text-[#8C8C8C] transition-colors">Enviar Mídia</button>
-                             {uploadFeedback && <p className="text-sm mt-2 text-center">{uploadFeedback}</p>}
+                             <input type="file" onChange={e => setFile(e.target.files ? e.target.files[0] : null)} required className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-[#DFF24B] file:text-[#020F59] hover:file:bg-opacity-80 transition-colors cursor-pointer"/>
+                             <button type="submit" disabled={!file} className="w-full bg-[#0528F2] text-white font-bold py-2 px-4 rounded-md hover:bg-[#0540F2] disabled:bg-gray-300 transition-colors">Enviar Mídia</button>
+                             {uploadFeedback && <p className="text-sm mt-2 text-center text-gray-600">{uploadFeedback}</p>}
                         </form>
-                        <h3 className="text-lg font-semibold border-t border-white/10 pt-4 text-[#F2F2F2]">Mídias Salvas</h3>
+                        <h3 className="text-lg font-semibold border-t pt-4">Mídias Salvas</h3>
                         <div className="mt-2 space-y-2 max-h-60 overflow-y-auto pr-2">
-                           {campaignMedia.length === 0 ? <p className="text-center text-[#8C8C8C] py-4">Nenhuma mídia salva.</p> : campaignMedia.map(media => (
-                               <div key={media.id} className="flex justify-between items-center p-2 bg-[#1c1c1c] border border-[#403F3D]/50 rounded-md shadow-sm">
-                                   <a href={media.filePath} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline truncate text-sm">{media.filePath.split('/').pop()}</a>
-                                   <button onClick={() => handleMediaDelete(media.id)} className="bg-red-800/70 text-white text-xs py-1 px-2 rounded hover:bg-red-700 flex-shrink-0">Deletar</button>
+                           {campaignMedia.length === 0 ? <p className="text-center text-gray-500 py-4">Nenhuma mídia salva.</p> : campaignMedia.map(media => (
+                               <div key={media.id} className="flex justify-between items-center p-2 bg-white rounded-md shadow-sm border">
+                                   <a href={media.filePath} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate text-sm">{media.filePath.split('/').pop()}</a>
+                                   <button onClick={() => handleMediaDelete(media.id)} className="bg-red-600 text-white text-xs py-1 px-2 rounded hover:bg-red-700 flex-shrink-0">Deletar</button>
                                </div>
                            ))}
                         </div>
                     </div>
 
-                    <div className="p-4 sm:p-6 border border-[#403F3D]/50 rounded-xl bg-[#0D0D0D]/30">
-                        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-[#F2F2F2]">{isEditing ? 'Editando Mensagem' : 'Criar Mensagem de Texto'}</h2>
+                    <div className="p-4 sm:p-6 border rounded-xl bg-gray-50/80">
+                        <h2 className="text-xl sm:text-2xl font-semibold mb-4">{isEditing ? 'Editando Mensagem' : 'Criar Mensagem de Texto'}</h2>
                         <form onSubmit={handleMessageSubmit} className="space-y-4">
-                            <input type="text" placeholder="Título (para sua referência)" value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-3 bg-[#0D0D0D] border border-[#403F3D] rounded-md text-[#F2F2F2] focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"/>
-                            <textarea placeholder="Corpo da mensagem..." value={body} onChange={e => setBody(e.target.value)} required rows={5} className="w-full p-3 bg-[#0D0D0D] border border-[#403F3D] rounded-md text-[#F2F2F2] focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"></textarea>
+                            <input type="text" placeholder="Título (para sua referência)" value={title} onChange={e => setTitle(e.target.value)} required className="w-full p-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0540F2]"/>
+                            <textarea placeholder="Corpo da mensagem..." value={body} onChange={e => setBody(e.target.value)} required rows={5} className="w-full p-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0540F2]"></textarea>
                             <div className="flex gap-4">
-                               <button type="submit" className="bg-[#F2F2F2] text-[#0D0D0D] font-bold py-2 px-4 rounded-md hover:bg-white transition-colors">{isEditing ? 'Salvar Alterações' : 'Criar Mensagem'}</button>
-                               {isEditing && <button type="button" onClick={handleCancelEdit} className="bg-[#403F3D] text-white py-2 px-4 rounded-md hover:bg-[#8C8C8C] transition-colors">Cancelar</button>}
+                               <button type="submit" className="bg-[#0528F2] text-white font-bold py-2 px-4 rounded-md hover:bg-[#0540F2] transition-colors">{isEditing ? 'Salvar Alterações' : 'Criar Mensagem'}</button>
+                               {isEditing && <button type="button" onClick={handleCancelEdit} className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 transition-colors">Cancelar</button>}
                             </div>
-                            {messageFeedback && <p className="text-sm mt-2">{messageFeedback}</p>}
+                            {messageFeedback && <p className="text-sm mt-2 text-gray-600">{messageFeedback}</p>}
                         </form>
                     </div>
                 </div>
 
                 <div className="mt-8">
-                    <h2 className="text-2xl font-semibold border-t border-white/10 pt-6 mb-4 text-[#F2F2F2]">Textos Salvos</h2>
+                    <h2 className="text-2xl font-semibold border-t pt-6 mb-4">Textos Salvos</h2>
                     <div className="space-y-4">
-                        {messages.length === 0 ? <p className="text-center text-[#8C8C8C]">Nenhum texto salvo.</p> : messages.map(msg => (
-                            <div key={msg.id} className="p-4 border border-[#403F3D]/50 rounded-lg flex flex-col sm:flex-row justify-between items-start gap-4 hover:bg-white/5 transition-colors">
+                        {messages.length === 0 ? <p className="text-center text-gray-500">Nenhum texto salvo.</p> : messages.map(msg => (
+                            <div key={msg.id} className="p-4 border rounded-lg flex flex-col sm:flex-row justify-between items-start gap-4 bg-white hover:bg-gray-50/50 transition-colors">
                                 <div className="flex-grow">
-                                    <h3 className="font-bold text-lg text-[#F2F2F2]">{msg.title}</h3>
-                                    <p className="text-[#BFBFBF] whitespace-pre-wrap">{msg.body}</p>
+                                    <h3 className="font-bold text-lg text-gray-800">{msg.title}</h3>
+                                    <p className="text-gray-600 whitespace-pre-wrap">{msg.body}</p>
                                 </div>
                                 <div className="flex gap-2 flex-shrink-0 pt-2 sm:pt-0 self-start sm:self-center">
-                                    <button onClick={() => handleEdit(msg)} className="bg-yellow-600/80 text-white text-sm py-1 px-3 rounded hover:bg-yellow-600">Editar</button>
-                                    <button onClick={() => handleDelete(msg.id)} className="bg-red-800/70 text-white text-sm py-1 px-3 rounded hover:bg-red-700">Deletar</button>
+                                    <button onClick={() => handleEdit(msg)} className="bg-yellow-400 text-black text-sm py-1 px-3 rounded hover:bg-yellow-500">Editar</button>
+                                    <button onClick={() => handleDelete(msg.id)} className="bg-red-600 text-white text-sm py-1 px-3 rounded hover:bg-red-700">Deletar</button>
                                 </div>
                             </div>
                         ))}

@@ -77,40 +77,48 @@ export default function LogsPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 bg-[#0D0D0D] text-[#BFBFBF]">
-      <div className="w-full max-w-4xl bg-[#1c1c1c] border border-[#403F3D] shadow-2xl shadow-black/50 rounded-2xl p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center border-b border-white/10 pb-4 mb-6 gap-4">
-          <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left text-[#F2F2F2]">Histórico da Campanha</h1>
-          <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline flex-shrink-0">Voltar ao Dashboard</Link>
+    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 bg-[#D9D9D9] text-[#020F59]">
+      <div className="w-full max-w-4xl bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl rounded-2xl p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left">Histórico da Campanha</h1>
+          <Link href="/" className="text-[#0540F2] hover:underline flex-shrink-0">Voltar ao Dashboard</Link>
         </div>
 
         <div className="space-y-2">
           {isLoading ? (
-            <div className="flex justify-center items-center h-40"><div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#F2F2F2]"></div></div>
+            <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#0528F2]"></div>
+            </div>
           ) : combinedLogs.length === 0 ? (
-            <div className="text-center text-[#8C8C8C] bg-[#0D0D0D]/50 p-8 rounded-xl"><p className="text-lg">Nenhum registro encontrado.</p></div>
+            <div className="text-center text-gray-500 bg-gray-100 p-8 rounded-xl">
+                <p className="text-lg">Nenhum registro encontrado.</p>
+                <p className="text-sm">Inicie uma campanha para ver os dados aqui.</p>
+            </div>
           ) : (
             combinedLogs.map((log) => (
-              <div key={log.isoDate} className="bg-[#0D0D0D]/30 border border-[#403F3D]/50 rounded-lg overflow-hidden">
-                <button onClick={() => toggleDetails(log.isoDate)} className="w-full flex flex-col sm:flex-row justify-between items-center p-4 hover:bg-white/5 transition-colors gap-4 text-left">
-                    <p className="font-semibold text-lg text-[#F2F2F2]">{log.displayDate}</p>
+              <div key={log.isoDate} className="bg-gray-50/80 border border-gray-200/80 rounded-lg overflow-hidden transition-all duration-300">
+                <button onClick={() => toggleDetails(log.isoDate)} className="w-full flex flex-col sm:flex-row justify-between items-center p-4 hover:bg-gray-100 gap-4 text-left">
+                    <p className="font-semibold text-lg text-[#020F59]">{log.displayDate}</p>
                     <div className="flex items-center gap-4 sm:gap-6">
-                        <div className="text-center"><p className="text-xl font-bold text-white">{log.sentCount}</p><p className="text-xs text-[#8C8C8C]">Envios</p></div>
-                        <div className="text-center"><p className="text-xl font-bold text-green-400">{log.replies.length}</p><p className="text-xs text-[#8C8C8C]">Respostas</p></div>
-                        <div className="text-center"><p className="text-xl font-bold text-blue-400">{log.responseRate}%</p><p className="text-xs text-[#8C8C8C]">Taxa</p></div>
+                        <div className="text-center"><p className="text-xl font-bold text-gray-700">{log.sentCount}</p><p className="text-xs text-gray-500">Envios</p></div>
+                        <div className="text-center"><p className="text-xl font-bold text-green-600">{log.replies.length}</p><p className="text-xs text-gray-500">Respostas</p></div>
+                        <div className="text-center p-2 rounded-lg bg-[#DFF24B]">
+                          <p className="text-xl font-bold text-[#020F59]">{log.responseRate}%</p>
+                          <p className="text-xs text-[#818C2E] font-semibold">Taxa</p>
+                        </div>
                     </div>
                 </button>
                 {expandedDate === log.isoDate && (
-                  <div className="border-t border-[#403F3D]/50 p-4 space-y-3 animate-in fade-in-0 bg-black/20">
-                    <h4 className="font-semibold text-[#F2F2F2]">Detalhes das Respostas:</h4>
+                  <div className="border-t border-gray-200 p-4 space-y-3 animate-in fade-in-0 bg-white">
+                    <h4 className="font-semibold text-[#020F59]">Detalhes das Respostas:</h4>
                     {log.replies.length > 0 ? (
                       log.replies.map(reply => (
-                        <div key={reply.id} className="p-3 bg-[#1c1c1c] rounded-md border border-transparent hover:border-[#403F3D]">
-                          <p className="text-sm font-mono text-green-400">{reply.contactNumber}</p>
-                          <p className="text-white whitespace-pre-wrap">{reply.body}</p>
+                        <div key={reply.id} className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                          <p className="text-sm font-mono text-green-700">{reply.contactNumber}</p>
+                          <p className="text-gray-800 whitespace-pre-wrap">{reply.body}</p>
                         </div>
                       ))
-                    ) : <p className="text-sm text-[#8C8C8C]">Nenhuma resposta registrada para este dia.</p>}
+                    ) : <p className="text-sm text-gray-500">Nenhuma resposta registrada para este dia.</p>}
                   </div>
                 )}
               </div>

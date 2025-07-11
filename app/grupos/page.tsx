@@ -104,64 +104,65 @@ export default function GruposPage() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-[#0D0D0D] text-[#BFBFBF]">
-      <div className="w-full max-w-7xl bg-[#1c1c1c] border border-[#403F3D] shadow-2xl shadow-black/50 rounded-2xl p-6 sm:p-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center border-b border-white/10 pb-4 mb-6 gap-4">
-            <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left text-[#F2F2F2]">Gerenciador de Contatos</h1>
-            <Link href="/" className="text-blue-400 hover:text-blue-300 hover:underline flex-shrink-0 transition-colors">Voltar ao Dashboard</Link>
+    <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 bg-[#D9D9D9] text-[#020F59]">
+      <div className="w-full max-w-7xl bg-white/80 backdrop-blur-lg border border-white/50 shadow-2xl rounded-2xl p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center border-b pb-4 mb-6 gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold text-center sm:text-left">Gerenciador de Contatos</h1>
+            <Link href="/" className="text-[#0540F2] hover:underline flex-shrink-0">Voltar ao Dashboard</Link>
         </div>
 
         {!isConnected ? (
-          <p className="text-center text-lg text-red-400 bg-red-900/20 border border-red-500/30 p-4 rounded-xl">
+          <p className="text-center text-lg text-red-800 bg-red-100 p-4 rounded-xl border border-red-200">
             WhatsApp não está conectado. Por favor, volte ao Dashboard para conectar.
           </p>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="p-4 sm:p-6 border border-white/10 rounded-xl bg-[#0D0D0D]/40 flex flex-col">
-                <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-[#F2F2F2]">Sincronizar de Grupos</h2>
+           
+            <div className="p-4 sm:p-6 border rounded-xl bg-gray-50/80 flex flex-col">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-4">Sincronizar de Grupos</h2>
                 <div className="flex flex-col lg:flex-row items-center gap-3 mb-4">
                   <select 
                     value={selectedDropdownGroup} 
                     onChange={(e) => setSelectedDropdownGroup(e.target.value)} 
                     disabled={isLoading} 
-                    className="w-full lg:flex-grow p-3 border border-[#403F3D] bg-[#0D0D0D] text-[#F2F2F2] rounded-md focus:outline-none focus:ring-2 focus:ring-[#8C8C8C]"
+                    className="w-full lg:flex-grow p-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0540F2]"
                   >
                     {isLoading ? <option>Carregando...</option> : allGroups.length > 0 ? allGroups.map(g => (<option key={g.id} value={g.id}>{g.name} ({g.participantCount})</option>)) : <option>Nenhum grupo encontrado</option>}
                   </select>
                   <button 
                     onClick={handleAddGroup} 
-                    className="w-full lg:w-auto bg-[#403F3D] text-white font-semibold py-3 px-5 rounded-md hover:bg-[#8C8C8C] hover:text-black transition-colors flex-shrink-0"
+                    className="w-full lg:w-auto bg-gray-700 text-white font-semibold py-3 px-5 rounded-md hover:bg-[#020F59] transition-colors flex-shrink-0"
                   >
                     Adicionar
                   </button>
                 </div>
                 <div className="flex-grow mb-4">
-                    <h3 className="text-lg font-semibold mb-2 text-[#F2F2F2]">Grupos para Sincronizar ({groupsToSync.length})</h3>
-                    <div className="min-h-[12rem] max-h-64 overflow-y-auto border border-[#403F3D] rounded-lg p-2 bg-[#0D0D0D]/50 space-y-2">
-                        {groupsToSync.length === 0 ? <p className="text-[#8C8C8C] text-center py-8">Nenhum grupo adicionado.</p> : groupsToSync.map(g => (<div key={g.id} className="flex justify-between items-center p-2 rounded-md bg-[#1c1c1c]"><span>{g.name}</span><button onClick={() => handleRemoveGroup(g.id)} className="text-red-400 hover:text-red-300 text-sm font-semibold">Remover</button></div>))}
+                    <h3 className="text-lg font-semibold mb-2">Grupos para Sincronizar ({groupsToSync.length})</h3>
+                    <div className="min-h-[12rem] max-h-64 overflow-y-auto border rounded-lg p-2 bg-white space-y-2">
+                        {groupsToSync.length === 0 ? <p className="text-gray-500 text-center py-8">Nenhum grupo adicionado.</p> : groupsToSync.map(g => (<div key={g.id} className="flex justify-between items-center p-2 rounded-md hover:bg-gray-100"><span>{g.name}</span><button onClick={() => handleRemoveGroup(g.id)} className="text-red-600 hover:text-red-800 text-sm font-semibold">Remover</button></div>))}
                     </div>
                 </div>
-                <div className="flex flex-col items-center text-center border-t border-white/10 pt-4">
-                    <button onClick={handleSyncClick} disabled={groupsToSync.length === 0} className="w-full bg-green-600/80 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-600 disabled:bg-[#403F3D] disabled:cursor-not-allowed transition-colors">Sincronizar {groupsToSync.length} Grupo(s)</button>
-                    {syncStatus && <p className="mt-2 text-sm text-[#BFBFBF] w-full"><b>Status:</b> {syncStatus}</p>}
+                <div className="flex flex-col items-center text-center border-t pt-4">
+                    <button onClick={handleSyncClick} disabled={groupsToSync.length === 0} className="w-full bg-[#0528F2] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#0540F2] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">Sincronizar {groupsToSync.length} Grupo(s)</button>
+                    {syncStatus && <p className="mt-2 text-sm text-gray-600 w-full"><b>Status:</b> {syncStatus}</p>}
                 </div>
             </div>
-
-            <div className="p-4 sm:p-6 border border-white/10 rounded-xl bg-[#0D0D0D]/40 flex flex-col">
-                <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-[#F2F2F2]">Importar de Arquivo</h2>
-                <div className="mb-4 p-3 bg-[#403F3D]/30 border border-[#8C8C8C]/30 rounded-md text-sm">
-                    <p className="font-semibold text-[#F2F2F2]">Carregue um arquivo `.csv`.</p>
+       
+            <div className="p-4 sm:p-6 border rounded-xl bg-gray-50/80 flex flex-col">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-4">Importar de Arquivo</h2>
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+                    <p className="font-semibold">Carregue um arquivo `.csv`.</p>
                     <p>Formato: `numero,nome` (o nome é opcional).</p>
                     <p>Ex: `5544999998888,Carlos`</p>
                 </div>
                 <form onSubmit={handleImportSubmit} className="space-y-4 flex-grow flex flex-col">
                     <div className="flex-grow">
-                        <input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} required className="w-full text-sm text-[#BFBFBF] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-[#403F3D] file:text-[#F2F2F2] hover:file:bg-[#8C8C8C] hover:file:text-black transition-colors"/>
+                        <input type="file" accept=".csv" onChange={e => setImportFile(e.target.files ? e.target.files[0] : null)} required className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-[#DFF24B] file:text-[#020F59] hover:file:bg-opacity-80 transition-colors cursor-pointer"/>
                     </div>
-                    <button type="submit" disabled={!importFile} className="w-full bg-[#8C8C8C] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#BFBFBF] hover:text-black disabled:bg-[#403F3D] disabled:cursor-not-allowed transition-colors">Importar Contatos do Arquivo</button>
+                    <button type="submit" disabled={!importFile} className="w-full bg-[#0528F2] text-white font-bold py-3 px-4 rounded-lg hover:bg-[#0540F2] disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">Importar Contatos do Arquivo</button>
                 </form>
                 {importStatus && (
-                    <p className="mt-4 text-md text-[#BFBFBF] bg-black/20 p-3 rounded-lg w-full">
+                    <p className="mt-4 text-md text-gray-700 bg-gray-100 p-3 rounded-lg w-full">
                         <b>Status da Importação:</b> {importStatus}
                     </p>
                 )}
@@ -170,5 +171,5 @@ export default function GruposPage() {
         )}
       </div>
     </main>
-  )
+  );
 }

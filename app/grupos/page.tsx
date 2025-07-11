@@ -50,21 +50,32 @@ export default function GruposPage() {
 
   const handleImportSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!socket || !importFile) return;
-    setImportStatus('Enviando arquivo...');
-    const formData = new FormData();
-    formData.append('media', importFile);
-    try {
-        const res = await fetch('http://localhost:3001/upload', { method: 'POST', body: formData });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error);
-        setImportStatus('Arquivo enviado. Processando...');
-        socket.emit('contacts:import', { filePath: result.filePath });
-        setImportFile(null);
-        (e.target as HTMLFormElement).reset();
-    } catch (err: any) {
-        setImportStatus(`Erro: ${err.message}`);
+    if (!socket || !importFile) {
+        setImportStatus('Por favor, selecione um arquivo.');
+        return;
     }
+    setImportStatus('Lendo arquivo no navegador...');
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+        const content = event.target?.result as string;
+        if (content) {
+            setImportStatus('Arquivo lido. Enviando conteúdo para o servidor...');
+            socket.emit('contacts:import-from-content', { content });
+        } else {
+            setImportStatus('Erro: Não foi possível ler o conteúdo do arquivo.');
+        }
+    };
+
+    reader.onerror = () => {
+        setImportStatus(`Erro ao ler o arquivo: ${reader.error}`);
+    };
+
+    reader.readAsText(importFile);
+
+    setImportFile(null);
+    (e.target as HTMLFormElement).reset();
   };
 
   const handleAddGroup = () => {

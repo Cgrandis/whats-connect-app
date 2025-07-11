@@ -1,11 +1,9 @@
-// app/logs/page.tsx (com Detalhes de Resposta em Acordeão)
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSocket } from '../../src/context/SocketContext';
 
-// Tipos para os dados recebidos e processados
 interface DailySentLog {
   date: string;
   count: number;
@@ -31,9 +29,7 @@ export default function LogsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
-  // Combina e agrupa os dados para exibição
   const combinedLogs = useMemo(() => {
-    // Agrupa as respostas detalhadas por dia
     const dailyReplies = replyLogs.reduce((acc, log) => {
         const dateKey = new Date(log.repliedAt).toISOString().split('T')[0];
         if (!acc[dateKey]) acc[dateKey] = [];
@@ -41,7 +37,6 @@ export default function LogsPage() {
         return acc;
     }, {} as Record<string, ReplyLog[]>);
 
-    // Pega todas as datas únicas de envios e respostas
     const allDates = new Set([...sentLogs.map(l => l.date), ...Object.keys(dailyReplies)]);
     
     return Array.from(allDates)
@@ -56,7 +51,7 @@ export default function LogsPage() {
           displayDate: new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }),
           isoDate: date,
           sentCount,
-          replies: repliesForDate, // Mantém a lista detalhada de respostas
+          replies: repliesForDate,
           responseRate
         };
       });
